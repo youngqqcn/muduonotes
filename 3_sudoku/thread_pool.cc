@@ -5,83 +5,112 @@
 
 #include "sudoku.h"
 #include <algorithm>
+#include <functional>
 
 using namespace muduo;
 using namespace muduo::net;
 
 ThreadPool threadPool;
 
-bool processRequest(const TcpConnectionPtr &conn, const string &request)
+class SudokuServer
 {
-    string id;
-    string puzzle;
-    bool goodRequest = true;
-
-    string::const_iterator colon = std::find(request.begin(), request.end(), ':');
-    if (colon != request.end())
+public:
+    SudokuServer(int nThreadNums, EventLoop *loop, const InetAddress &listenAddr, string name)
+        : _m_nThreadNums(nThreadNums), _m_server(loop, listenAddr, name)
     {
-        id.assign(request.begin(), colon);
-        puzzle.assign(colon + 1, request.end());
-    }
-    else
-    {
-        puzzle = request;
+        _m_server.setConnectionCallback(std::bind(&SudokuServer::onConnection, this, _1));
+        _m_server.setMessageCallback(std::bind(&SudokuServer::onMessage, this, _1, _2, _3));
     }
 
-    if (puzzle.size() == implicit_cast<size_t>(kCells))
+    void start()
     {
-        threadPool.run([conn, id, puzzle]() { // 需要使用值传递, 不能使用引用传递
-            LOG_INFO << "puzzle is " << puzzle;
-            LOG_INFO<< conn->name() << "thread_id: " << gettid();
-            string result = solveSudoku(puzzle);
-            if (id.empty())
-            {
-                conn->send(result + "\r\n");
-            }
-            else
-            {
-                conn->send(id + ":" + result + "\r\n");
-            }
-        });
+        _m_server.start();
+        _m_threadPool.start(_m_nThreadNums);
     }
-    else
-    {
-        goodRequest = false;
-    }
-    return goodRequest;
-}
 
-void onMessage(const TcpConnectionPtr &conn, Buffer *pBuf, Timestamp timestamp)
-{
-    LOG_DEBUG << conn->name();
-    size_t len = pBuf->readableBytes();
-    while (len > kCells + 2)
+    void onConnection(const TcpConnectionPtr &conn)
     {
-        const char *crlf = pBuf->findCRLF();
-        if (crlf)
+        LOG_INFO << conn->peerAddress().toIpPort() << "  " << conn->localAddress().toIpPort() 
+            << " is " << ((conn->connected()) ? (" UP ") : (" DOWN "));
+    }
+
+    bool processRequest(const TcpConnectionPtr &conn, const string &request)
+    {
+        string id;
+        string puzzle;
+        bool goodRequest = true;
+
+        string::const_iterator colon = std::find(request.begin(), request.end(), ':');
+        if (colon != request.end())
         {
-            string reqData(pBuf->peek(), crlf);
-            pBuf->retrieveUntil(crlf + 2);
-            len = pBuf->readableBytes();
-            if (!processRequest(conn, reqData))
-            {
-                conn->send("bad request");
-                conn->shutdown();
-                break;
-            }
-        }
-        else if (len > 100)
-        {
-            conn->send("data is too long");
-            conn->shutdown();
-            break;
+            id.assign(request.begin(), colon);
+            puzzle.assign(colon + 1, request.end());
         }
         else
         {
-            break;
+            puzzle = request;
+        }
+
+        if (puzzle.size() == implicit_cast<size_t>(kCells))
+        {
+            threadPool.run([conn, id, puzzle]() { // 需要使用值传递, 不能使用引用传递
+                LOG_INFO << "puzzle is " << puzzle;
+                LOG_INFO << conn->name() << "thread_id: " << gettid();
+                string result = solveSudoku(puzzle);
+                if (id.empty())
+                {
+                    conn->send(result + "\r\n");
+                }
+                else
+                {
+                    conn->send(id + ":" + result + "\r\n");
+                }
+            });
+        }
+        else
+        {
+            goodRequest = false;
+        }
+        return goodRequest;
+    }
+
+    void onMessage(const TcpConnectionPtr &conn, Buffer *pBuf, Timestamp timestamp)
+    {
+        LOG_DEBUG << conn->name();
+        size_t len = pBuf->readableBytes();
+        while (len > kCells + 2)
+        {
+            const char *crlf = pBuf->findCRLF();
+            if (crlf)
+            {
+                string reqData(pBuf->peek(), crlf);
+                pBuf->retrieveUntil(crlf + 2);
+                len = pBuf->readableBytes();
+                if (!processRequest(conn, reqData))
+                {
+                    conn->send("bad request");
+                    conn->shutdown();
+                    break;
+                }
+            }
+            else if (len > 100)
+            {
+                conn->send("data is too long");
+                conn->shutdown();
+                break;
+            }
+            else
+            {
+                break;
+            }
         }
     }
-}
+
+private:
+    TcpServer _m_server;
+    ThreadPool _m_threadPool;
+    int _m_nThreadNums;
+};
 
 int main(int argc, char *argv[])
 {
@@ -93,11 +122,8 @@ int main(int argc, char *argv[])
     }
 
     EventLoop loop;
-    TcpServer server(&loop, InetAddress(9000), "sudoku");
-    server.setMessageCallback(onMessage);
-    threadPool.start(numThreads);
+    SudokuServer server(numThreads, &loop, InetAddress(9000), "sudoku");
     server.start();
-
     loop.loop();
 
     return 0;
