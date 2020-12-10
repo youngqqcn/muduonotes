@@ -10,7 +10,6 @@
 using namespace muduo;
 using namespace muduo::net;
 
-ThreadPool threadPool;
 
 class SudokuServer
 {
@@ -53,7 +52,7 @@ public:
 
         if (puzzle.size() == implicit_cast<size_t>(kCells))
         {
-            threadPool.run([conn, id, puzzle]() { // 需要使用值传递, 不能使用引用传递
+            _m_threadPool.run([conn, id, puzzle]() { // 需要使用值传递, 不能使用引用传递
                 LOG_INFO << "puzzle is " << puzzle;
                 LOG_INFO << conn->name() << "thread_id: " << gettid();
                 string result = solveSudoku(puzzle);
@@ -115,11 +114,16 @@ private:
 int main(int argc, char *argv[])
 {
     LOG_INFO << "pid = " << getpid() << ", tid = " << CurrentThread::tid();
-    int numThreads = 0;
+    int numThreads = 2;
     if (argc > 1)
     {
         numThreads = atoi(argv[1]);
     }
+    else
+    {
+        numThreads = 4;
+    }
+    
 
     EventLoop loop;
     SudokuServer server(numThreads, &loop, InetAddress(9000), "sudoku");
