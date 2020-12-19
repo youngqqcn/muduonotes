@@ -52,7 +52,7 @@ private:
 
 int main(int argc, char const *argv[])
 {
-    if(argc < 1)
+    if(argc < 2)
     {
         printf("Usage: %s host_ip\n", argv[0]);
         return 0;
