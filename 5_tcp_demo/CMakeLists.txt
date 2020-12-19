@@ -13,3 +13,7 @@ add_executable(time time.cc )
 target_link_libraries(time muduo_net muduo_base pthread rt)
 add_executable(timeclient time_client.cc )
 target_link_libraries(timeclient muduo_net muduo_base pthread rt)
+
+
+add_executable(echo echo.cc )
+target_link_libraries(echo muduo_net muduo_base pthread rt)
