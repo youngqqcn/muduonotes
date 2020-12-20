@@ -21,3 +21,7 @@ target_link_libraries(echo muduo_net muduo_base pthread rt)
 
 add_executable(echoclient echo_hack_client.cc )
 target_link_libraries(echoclient muduo_net muduo_base pthread rt)
+
+
+add_executable(epolldemo ./epoll_demo/server.cc )
+target_link_libraries(epolldemo pthread rt)
