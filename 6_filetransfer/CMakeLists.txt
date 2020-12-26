@@ -7,3 +7,8 @@ project(filetransfer)
 
 add_executable(filetransferv1 filetransfer_v1.cc)
 target_link_libraries(filetransferv1 muduo_net muduo_base pthread rt)
+
+
+
+add_executable(filetransferv2 filetransfer_v2.cc)
+target_link_libraries(filetransferv2 muduo_net muduo_base pthread rt)

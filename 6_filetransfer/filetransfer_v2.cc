@@ -3,6 +3,7 @@
 #include <muduo/base/Logging.h>
 #include <muduo/net/EventLoop.h>
 #include <muduo/base/noncopyable.h>
+// #include <boost/any.hpp>
 
 using namespace muduo;
 using namespace muduo::net;
@@ -15,6 +16,7 @@ public:
     {
         _m_server.setConnectionCallback(std::bind(&FileTransfer::onConnection, this, _1));
         _m_server.setMessageCallback(std::bind(&FileTransfer::onMessage, this, _1, _2, _3));
+        _m_server.setWriteCompleteCallback(std::bind(&FileTransfer::onWriteComplete, this, _1));
     }
 
     static string readFile(const char *filename)
@@ -52,11 +54,9 @@ public:
 
 private:
     TcpServer _m_server;
-    // EventLoop *pLoop;
 
     void onMessage(const TcpConnectionPtr &conn, Buffer *pBuf, Timestamp timestamp)
     {
-        // conn->connected();
     }
 
     void onConnection(const TcpConnectionPtr &conn)
@@ -64,26 +64,70 @@ private:
         if (conn->connected())
         {
             LOG_INFO << "client connected";
-            string content = readFile("./test.txt");
-            conn->send(content);
-            conn->shutdown();
+
+            FILE *fp = ::fopen("./test.txt", "rb");
+            if (fp)
+            {
+                conn->setContext(fp);
+                char buf[1024];
+                size_t nRead = ::fread(buf, 1, sizeof(buf), fp);
+                if (nRead > 0)
+                {
+                    // LOG_INFO << "===============";
+                    // conn->send(buf, nRead);
+                    // LOG_INFO << "===============";
+                    conn->send(buf, nRead);
+                }
+            }
+            else
+            {
+
+                conn->shutdown();
+                LOG_ERROR << "open file error";
+            }
         }
         else
         {
+            if (!conn->getContext().empty())
+            {
+                FILE *fp = boost::any_cast<FILE *>(conn->getContext());
+                if (fp)
+                {
+                    ::fclose(fp);
+                }
+            }
             LOG_INFO << " client closed  connection ";
         }
+    }
 
+    // conn->send 发送完毕之后会回调此方法
+    void onWriteComplete(const TcpConnectionPtr &conn)
+    {
+        LOG_INFO << "onWriteComplete";
 
+        FILE *fp = boost::any_cast<FILE *>(conn->getContext());
+        if (fp)
+        {
+            char buf[1024];
+            size_t nread = ::fread(buf, 1, sizeof(buf), fp);
+            if (nread)
+            {
+                conn->send(buf, nread);
+            }
+            else
+            {
+                ::fclose(fp);
+                fp = NULL;
+                conn->setContext(fp);
+                conn->shutdown();
+                LOG_INFO << "send finished";
+            }
+        }
     }
 };
 
 int main(int argc, char const *argv[])
 {
-    /* code */
-    // printf("hello\n");
-
-    // string content = FileTransfer::readFile("./test.txt");
-    // LOG_INFO <<  "content.size = " << content.size() << "content is" << content;
 
     EventLoop loop;
     FileTransfer filestransfer(&loop, InetAddress(9000));
