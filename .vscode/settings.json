@@ -52,6 +52,15 @@
         "typeindex": "cpp",
         "typeinfo": "cpp",
         "variant": "cpp",
-        "iostream": "cpp"
+        "iostream": "cpp",
+        "ctime": "cpp",
+        "hash_map": "cpp",
+        "hash_set": "cpp",
+        "chrono": "cpp",
+        "condition_variable": "cpp",
+        "unordered_set": "cpp",
+        "ratio": "cpp",
+        "mutex": "cpp",
+        "thread": "cpp"
     }
 }

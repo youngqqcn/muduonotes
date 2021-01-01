@@ -1,0 +1,13 @@
+
+syntax = "proto2";
+message Example1 {
+    optional string stringVal = 1;
+    optional bytes bytesVal = 2;
+    message EmbeddedMessage {
+        required int32 int32Val = 1;
+        required string stringVal = 2;
+    }
+    optional EmbeddedMessage embeddedExample1 = 3;
+    repeated int32 repeatedInt32Val = 4;
+    repeated string repeatedStringVal = 5;
+}
