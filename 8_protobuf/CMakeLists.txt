@@ -11,3 +11,16 @@ add_custom_command(OUTPUT test.pb.cc test.pb.h
 
 add_executable(main  main.cc test.pb.cc)
 target_link_libraries(main protobuf pthread)
+
+
+add_library(pb_codec codec.cc)
+target_link_libraries(pb_codec protobuf  muduo_net z )
+
+
+add_executable(server server.cc)
+target_link_libraries(server pb_codec muduo_base z pthread)
+
+
+add_executable(client client.cc)
+target_link_libraries(server pb_codec )
+
