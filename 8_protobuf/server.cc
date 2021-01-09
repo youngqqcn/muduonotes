@@ -58,13 +58,15 @@ private:
         << " questioner  " << message->DebugString();
 
         Answer ans;
-        ans.set_id(666);
+        ans.set_id(message->id());
         ans.set_questioner(message->questioner());
-        ans.set_answerer("yqq");
-        ans.add_solution("solution1");
-        ans.add_solution("solution2");
-        ans.add_solution("solution3");
-        ans.add_solution("solution4");
+        ans.set_answerer("client");
+
+        for(int i = 0; i < message->question_size(); i++)
+        {
+            ans.add_solution(message->question(i) + " ok");
+        }
+        _m_codec.send(conn, ans);
     }
 
     void onAnswer(const muduo::net::TcpConnectionPtr &conn,

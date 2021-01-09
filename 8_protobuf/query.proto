@@ -1,3 +1,4 @@
+syntax = "proto2";
 package yqq;
 option java_package = "yqq.codec.tests";
 option java_outer_classname = "QueryProtos";
